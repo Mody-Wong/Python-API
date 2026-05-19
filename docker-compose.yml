@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: running_plan_db
+    environment:
+      POSTGRES_USER: running_user
+      POSTGRES_PASSWORD: running_password
+      POSTGRES_DB: running_plan_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
