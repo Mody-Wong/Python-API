@@ -245,6 +245,40 @@ The test suite currently includes:
 
 Training plan tests use an in-memory SQLite database override, so they do not require Docker or PostgreSQL to be running.
 
+## Deployment Notes
+
+This project is intended to be deployable to AWS Elastic Beanstalk with PostgreSQL hosted on Amazon RDS.
+
+Deployment expectations:
+
+- Elastic Beanstalk runs the FastAPI app using the root `Procfile`
+- Runtime dependencies are installed from `requirements.txt`
+- Production database credentials are provided through the `DATABASE_URL` environment variable
+- Database schema changes are applied with Alembic migrations
+- PostgreSQL should run on Amazon RDS in production, not Docker
+
+Before deploying:
+
+```bash
+.venv/bin/python -m pytest
+.venv/bin/alembic upgrade head
+```
+
+The production `DATABASE_URL` should use this format:
+
+```text
+postgresql+psycopg://USERNAME:PASSWORD@HOSTNAME:5432/DATABASE_NAME
+```
+
+After deployment, verify:
+
+```text
+GET /health
+GET /health/db
+POST /training-plans
+GET /training-plans/{plan_id}
+```
+
 ## Useful Commands
 
 Start PostgreSQL:
