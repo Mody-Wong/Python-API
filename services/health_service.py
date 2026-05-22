@@ -6,7 +6,7 @@ def get_health_status() -> HealthResponse:
 
 
 def get_database_health_status() -> HealthResponse:
-    from database.session import check_database_connection
+    from repositories.training_plan_repository import check_dynamodb_connection
 
-    check_database_connection()
-    return HealthResponse(status="ok", message="Database connection is healthy")
+    check_dynamodb_connection()
+    return HealthResponse(status="ok", message="DynamoDB connection is healthy")

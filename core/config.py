@@ -5,14 +5,18 @@ from pydantic import BaseModel
 
 
 class Settings(BaseModel):
-    database_url: str = (
-        "postgresql+psycopg://running_user:running_password"
-        "@localhost:5432/running_plan_db"
-    )
+    aws_region: str = "eu-west-2"
+    dynamodb_endpoint_url: str | None = None
+    training_plans_table_name: str = "training-plans"
 
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings(
-        database_url=getenv("DATABASE_URL", Settings().database_url),
+        aws_region=getenv("AWS_REGION", Settings().aws_region),
+        dynamodb_endpoint_url=getenv("DYNAMODB_ENDPOINT_URL"),
+        training_plans_table_name=getenv(
+            "TRAINING_PLANS_TABLE_NAME",
+            Settings().training_plans_table_name,
+        ),
     )

@@ -10,10 +10,8 @@ This repository is also designed to demonstrate how backend engineering patterns
 
 - Python
 - FastAPI
-- PostgreSQL
-- SQLAlchemy
-- Alembic
-- Docker Compose
+- DynamoDB
+- Boto3
 - Pytest
 
 ## Current Features
@@ -22,8 +20,7 @@ This repository is also designed to demonstrate how backend engineering patterns
 - Database health check endpoint
 - Create a training plan
 - Retrieve a training plan by ID
-- PostgreSQL persistence
-- Alembic database migrations
+- DynamoDB persistence
 - Router-level and service-level tests
 
 ## Architecture
@@ -35,8 +32,7 @@ main.py
 routers/
 services/
 schemas/
-models/
-database/
+repositories/
 core/
 tests/
 ```
@@ -55,21 +51,13 @@ Contains business logic. Routers delegate to services instead of directly handli
 
 Contains Pydantic request and response models. These are similar to DTOs in a Spring application.
 
-`models/`
+`repositories/`
 
-Contains SQLAlchemy database models. These are similar to JPA entities.
-
-`database/`
-
-Contains database setup, SQLAlchemy session configuration, and the `get_db` dependency used by FastAPI routes.
+Contains persistence adapters. The current implementation stores and retrieves training plans from DynamoDB.
 
 `core/`
 
 Contains application configuration, including environment-driven settings such as the database URL.
-
-`migrations/`
-
-Contains Alembic migration files. These track database schema changes over time.
 
 `tests/`
 
@@ -82,9 +70,9 @@ Contains automated tests organized by application layer.
 | Controller | Router |
 | Service | Service |
 | DTO | Pydantic schema |
-| JPA Entity | SQLAlchemy model |
-| Repository / EntityManager | SQLAlchemy session |
-| Flyway / Liquibase | Alembic |
+| JPA Entity | Domain model / persisted item |
+| Repository | DynamoDB repository |
+| Flyway / Liquibase | DynamoDB table provisioning |
 | Dependency Injection | `Depends(...)` |
 
 ## Request Flow
@@ -94,8 +82,8 @@ Client
   -> FastAPI app
   -> Router
   -> Service
-  -> SQLAlchemy session
-  -> PostgreSQL
+  -> DynamoDB repository
+  -> DynamoDB
   -> Pydantic response schema
   -> JSON response
 ```
@@ -106,8 +94,8 @@ Example:
 POST /training-plans
   -> routers/training_plans.py
   -> services/training_plan_service.py
-  -> models/training_plan.py
-  -> PostgreSQL
+  -> repositories/training_plan_repository.py
+  -> DynamoDB
   -> TrainingPlanResponse
 ```
 
@@ -150,7 +138,7 @@ Example response:
 
 ```json
 {
-  "id": 1,
+  "id": "3f0a4a2a-7e2f-4d4a-8d84-1f8d9552e8f1",
   "race_type": "half_marathon",
   "race_date": "2026-09-20",
   "experience_level": "beginner",
@@ -181,25 +169,19 @@ source .venv/bin/activate
 .venv/bin/python -m pip install -r requirements-dev.txt
 ```
 
-### 3. Start PostgreSQL
+### 3. Configure DynamoDB
 
-```bash
-docker compose up -d
+Create a DynamoDB table with:
+
+```text
+Table name: training-plans
+Partition key: id
+Partition key type: String
 ```
 
-Check the container:
+For AWS deployment, make sure the Elastic Beanstalk instance role has permission to read and write this table.
 
-```bash
-docker compose ps
-```
-
-### 4. Run Database Migrations
-
-```bash
-.venv/bin/alembic upgrade head
-```
-
-### 5. Start The API
+### 4. Start The API
 
 ```bash
 .venv/bin/uvicorn main:app --reload
@@ -211,23 +193,19 @@ Open the interactive API docs:
 http://127.0.0.1:8000/docs
 ```
 
-## Database
+## DynamoDB
 
-Local PostgreSQL is provided by Docker Compose.
+The API stores training plans in DynamoDB.
 
-Default local connection:
-
-```text
-postgresql+psycopg://running_user:running_password@localhost:5432/running_plan_db
-```
-
-Environment variable:
+Environment variables:
 
 ```text
-DATABASE_URL
+AWS_REGION=eu-west-2
+TRAINING_PLANS_TABLE_NAME=training-plans
+DYNAMODB_ENDPOINT_URL=
 ```
 
-See `.env.example` for the expected format.
+`DYNAMODB_ENDPOINT_URL` is optional. It can be used for local DynamoDB tooling; leave it unset in AWS.
 
 ## Testing
 
@@ -243,31 +221,30 @@ The test suite currently includes:
 - Service tests for business logic
 - Validation tests for invalid request data
 
-Training plan tests use an in-memory SQLite database override, so they do not require Docker or PostgreSQL to be running.
+Training plan tests use an in-memory fake repository, so they do not require AWS or DynamoDB to be running.
 
 ## Deployment Notes
 
-This project is intended to be deployable to AWS Elastic Beanstalk with PostgreSQL hosted on Amazon RDS.
+This project is intended to be deployable to AWS Elastic Beanstalk with DynamoDB as the persistence layer.
 
 Deployment expectations:
 
 - Elastic Beanstalk runs the FastAPI app using the root `Procfile`
 - Runtime dependencies are installed from `requirements.txt`
-- Production database credentials are provided through the `DATABASE_URL` environment variable
-- Database schema changes are applied with Alembic migrations
-- PostgreSQL should run on Amazon RDS in production, not Docker
+- DynamoDB table configuration is provided through environment variables
+- The Elastic Beanstalk instance role must have DynamoDB table permissions
 
 Before deploying:
 
 ```bash
 .venv/bin/python -m pytest
-.venv/bin/alembic upgrade head
 ```
 
-The production `DATABASE_URL` should use this format:
+Set these environment variables in Elastic Beanstalk:
 
 ```text
-postgresql+psycopg://USERNAME:PASSWORD@HOSTNAME:5432/DATABASE_NAME
+AWS_REGION=eu-west-2
+TRAINING_PLANS_TABLE_NAME=training-plans
 ```
 
 After deployment, verify:
@@ -280,30 +257,6 @@ GET /training-plans/{plan_id}
 ```
 
 ## Useful Commands
-
-Start PostgreSQL:
-
-```bash
-docker compose up -d
-```
-
-Stop PostgreSQL:
-
-```bash
-docker compose down
-```
-
-Run migrations:
-
-```bash
-.venv/bin/alembic upgrade head
-```
-
-Check current migration:
-
-```bash
-.venv/bin/alembic current
-```
 
 Run the app:
 
@@ -326,4 +279,4 @@ Run tests:
 - Add plan update and recalculation endpoints
 - Add richer domain rules for training load and recovery
 - Add AWS Elastic Beanstalk deployment configuration
-- Use Amazon RDS for production PostgreSQL
+- Add infrastructure-as-code for DynamoDB table provisioning

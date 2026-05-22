@@ -27,7 +27,7 @@ class TrainingPlanCreate(BaseModel):
 class TrainingPlanResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: str
     race_type: RaceType
     race_date: date
     experience_level: ExperienceLevel

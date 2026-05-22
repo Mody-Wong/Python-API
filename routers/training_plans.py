@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 
-from database.session import get_db
+from repositories.training_plan_repository import (
+    TrainingPlanRepository,
+    get_training_plan_repository,
+)
 from schemas.training_plan import TrainingPlanCreate, TrainingPlanResponse
 from services.training_plan_service import create_training_plan, get_training_plan
 
@@ -15,9 +17,9 @@ router = APIRouter(prefix="/training-plans", tags=["training-plans"])
 )
 def create_plan(
     request: TrainingPlanCreate,
-    db: Session = Depends(get_db),
+    repository: TrainingPlanRepository = Depends(get_training_plan_repository),
 ):
-    return create_training_plan(request, db)
+    return create_training_plan(request, repository)
 
 
 @router.get(
@@ -26,10 +28,10 @@ def create_plan(
     responses={404: {"description": "Training plan not found"}},
 )
 def get_plan(
-    plan_id: int,
-    db: Session = Depends(get_db),
+    plan_id: str,
+    repository: TrainingPlanRepository = Depends(get_training_plan_repository),
 ):
-    training_plan = get_training_plan(plan_id, db)
+    training_plan = get_training_plan(plan_id, repository)
     if training_plan is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

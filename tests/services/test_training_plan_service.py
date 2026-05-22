@@ -1,38 +1,27 @@
 from datetime import date
 
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
-from database.base import Base
-from models.training_plan import TrainingPlan
 from schemas.training_plan import ExperienceLevel, RaceType, TrainingPlanCreate
 from services.training_plan_service import create_training_plan, get_training_plan
 
 
-@pytest.fixture
-def db_session():
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    TestingSessionLocal = sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=engine,
-    )
-    Base.metadata.create_all(bind=engine)
+class FakeTrainingPlanRepository:
+    def __init__(self) -> None:
+        self.training_plans = {}
+        self.next_id_value = "plan-1"
 
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    def next_id(self):
+        return self.next_id_value
+
+    def save(self, training_plan):
+        self.training_plans[training_plan.id] = training_plan
+        return training_plan
+
+    def get_by_id(self, plan_id):
+        return self.training_plans.get(plan_id)
 
 
-def test_create_training_plan_returns_draft_plan(db_session):
+def test_create_training_plan_returns_draft_plan():
+    repository = FakeTrainingPlanRepository()
     request = TrainingPlanCreate(
         race_type=RaceType.half_marathon,
         race_date=date(2026, 9, 20),
@@ -40,9 +29,9 @@ def test_create_training_plan_returns_draft_plan(db_session):
         days_per_week=4,
     )
 
-    response = create_training_plan(request, db_session)
+    response = create_training_plan(request, repository)
 
-    assert response.id == 1
+    assert response.id == "plan-1"
     assert response.race_type == RaceType.half_marathon
     assert response.race_date == date(2026, 9, 20)
     assert response.experience_level == ExperienceLevel.beginner
@@ -50,27 +39,29 @@ def test_create_training_plan_returns_draft_plan(db_session):
     assert response.status == "draft"
 
 
-def test_get_training_plan_returns_existing_plan(db_session):
-    training_plan = TrainingPlan(
-        race_type="half_marathon",
-        race_date=date(2026, 9, 20),
-        experience_level="beginner",
-        days_per_week=4,
-        status="draft",
+def test_get_training_plan_returns_existing_plan():
+    repository = FakeTrainingPlanRepository()
+    created_plan = create_training_plan(
+        TrainingPlanCreate(
+            race_type=RaceType.half_marathon,
+            race_date=date(2026, 9, 20),
+            experience_level=ExperienceLevel.beginner,
+            days_per_week=4,
+        ),
+        repository,
     )
-    db_session.add(training_plan)
-    db_session.commit()
-    db_session.refresh(training_plan)
 
-    response = get_training_plan(training_plan.id, db_session)
+    response = get_training_plan(created_plan.id, repository)
 
     assert response is not None
-    assert response.id == training_plan.id
+    assert response.id == created_plan.id
     assert response.race_type == RaceType.half_marathon
     assert response.status == "draft"
 
 
-def test_get_training_plan_returns_none_when_missing(db_session):
-    response = get_training_plan(999, db_session)
+def test_get_training_plan_returns_none_when_missing():
+    repository = FakeTrainingPlanRepository()
+
+    response = get_training_plan("missing-plan-id", repository)
 
     assert response is None

@@ -1,6 +1,4 @@
+boto3
 fastapi
 gunicorn
 uvicorn
-sqlalchemy
-psycopg[binary]
-alembic
