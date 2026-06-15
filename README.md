@@ -10,21 +10,15 @@ This repository is also designed to demonstrate how backend engineering patterns
 
 - Python
 - FastAPI
-- PostgreSQL
-- SQLAlchemy
-- Alembic
-- Docker Compose
 - Pytest
 
 ## Current Features
 
 - Health check endpoint
-- Database health check endpoint
-- Create a training plan
-- Retrieve a training plan by ID
-- PostgreSQL persistence
-- Alembic database migrations
-- Router-level and service-level tests
+- Protected authenticated user endpoint
+- Create a training plan in memory
+- Retrieve an in-memory training plan by ID
+- Auth0 configuration and token validation helper
 
 ## Architecture
 
@@ -57,19 +51,19 @@ Contains Pydantic request and response models. These are similar to DTOs in a Sp
 
 `models/`
 
-Contains SQLAlchemy database models. These are similar to JPA entities.
+Contains legacy SQLAlchemy database models. These are not used by the mounted API on this branch.
 
 `database/`
 
-Contains database setup, SQLAlchemy session configuration, and the `get_db` dependency used by FastAPI routes.
+Contains legacy database setup. No mounted FastAPI route depends on it on this branch.
 
 `core/`
 
-Contains application configuration, including environment-driven settings such as the database URL.
+Contains application configuration, including environment-driven Auth0 settings.
 
 `migrations/`
 
-Contains Alembic migration files. These track database schema changes over time.
+Contains legacy Alembic migration files. These are not required while this branch is running without a database.
 
 `tests/`
 
@@ -94,8 +88,6 @@ Client
   -> FastAPI app
   -> Router
   -> Service
-  -> SQLAlchemy session
-  -> PostgreSQL
   -> Pydantic response schema
   -> JSON response
 ```
@@ -106,8 +98,6 @@ Example:
 POST /training-plans
   -> routers/training_plans.py
   -> services/training_plan_service.py
-  -> models/training_plan.py
-  -> PostgreSQL
   -> TrainingPlanResponse
 ```
 
@@ -121,11 +111,13 @@ GET /health
 
 Checks that the API is running.
 
+### Auth
+
 ```http
-GET /health/db
+GET /me
 ```
 
-Checks that the API can connect to the database.
+Returns selected claims from a valid Auth0 bearer token.
 
 ### Training Plans
 
@@ -133,7 +125,10 @@ Checks that the API can connect to the database.
 POST /training-plans
 ```
 
-Creates and stores a training plan.
+Creates and stores a training plan in memory.
+
+Requires an Auth0 bearer token. The plan is associated with the token's `sub`
+claim.
 
 Example request:
 
@@ -163,7 +158,10 @@ Example response:
 GET /training-plans/{plan_id}
 ```
 
-Retrieves a stored training plan by ID.
+Retrieves an in-memory training plan by ID.
+
+Requires an Auth0 bearer token. A plan is only returned to the user who created
+it.
 
 ## Local Development
 
@@ -181,25 +179,7 @@ source .venv/bin/activate
 .venv/bin/python -m pip install -r requirements-dev.txt
 ```
 
-### 3. Start PostgreSQL
-
-```bash
-docker compose up -d
-```
-
-Check the container:
-
-```bash
-docker compose ps
-```
-
-### 4. Run Database Migrations
-
-```bash
-.venv/bin/alembic upgrade head
-```
-
-### 5. Start The API
+### 3. Start The API
 
 ```bash
 .venv/bin/uvicorn main:app --reload
@@ -211,24 +191,6 @@ Open the interactive API docs:
 http://127.0.0.1:8000/docs
 ```
 
-## Database
-
-Local PostgreSQL is provided by Docker Compose.
-
-Default local connection:
-
-```text
-postgresql+psycopg://running_user:running_password@localhost:5432/running_plan_db
-```
-
-Environment variable:
-
-```text
-DATABASE_URL
-```
-
-See `.env.example` for the expected format.
-
 ## Testing
 
 Run all tests:
@@ -239,71 +201,32 @@ Run all tests:
 
 The test suite currently includes:
 
-- Router tests for API contracts
-- Service tests for business logic
-- Validation tests for invalid request data
-
-Training plan tests use an in-memory SQLite database override, so they do not require Docker or PostgreSQL to be running.
+- Router tests for the active API contract
+- Service tests for in-memory training plan behavior
 
 ## Deployment Notes
 
-This project is intended to be deployable to AWS Elastic Beanstalk with PostgreSQL hosted on Amazon RDS.
+This project is intended to be deployable to AWS Elastic Beanstalk.
 
 Deployment expectations:
 
 - Elastic Beanstalk runs the FastAPI app using the root `Procfile`
 - Runtime dependencies are installed from `requirements.txt`
-- Production database credentials are provided through the `DATABASE_URL` environment variable
-- Database schema changes are applied with Alembic migrations
-- PostgreSQL should run on Amazon RDS in production, not Docker
+- Auth0 configuration is provided through environment variables
 
 Before deploying:
 
 ```bash
 .venv/bin/python -m pytest
-.venv/bin/alembic upgrade head
-```
-
-The production `DATABASE_URL` should use this format:
-
-```text
-postgresql+psycopg://USERNAME:PASSWORD@HOSTNAME:5432/DATABASE_NAME
 ```
 
 After deployment, verify:
 
 ```text
 GET /health
-GET /health/db
-POST /training-plans
-GET /training-plans/{plan_id}
 ```
 
 ## Useful Commands
-
-Start PostgreSQL:
-
-```bash
-docker compose up -d
-```
-
-Stop PostgreSQL:
-
-```bash
-docker compose down
-```
-
-Run migrations:
-
-```bash
-.venv/bin/alembic upgrade head
-```
-
-Check current migration:
-
-```bash
-.venv/bin/alembic current
-```
 
 Run the app:
 
@@ -326,4 +249,3 @@ Run tests:
 - Add plan update and recalculation endpoints
 - Add richer domain rules for training load and recovery
 - Add AWS Elastic Beanstalk deployment configuration
-- Use Amazon RDS for production PostgreSQL

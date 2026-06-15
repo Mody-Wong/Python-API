@@ -1,40 +1,21 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from database.base import Base
-from database.session import get_db
+from core.auth import require_auth
 from main import app
+from services.training_plan_service import reset_training_plans
 
 
 @pytest.fixture
 def client():
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    TestingSessionLocal = sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=engine,
-    )
-    Base.metadata.create_all(bind=engine)
+    reset_training_plans()
+    app.dependency_overrides[require_auth] = lambda: {"sub": "auth0|test-user"}
 
-    def override_get_db():
-        db = TestingSessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
         yield test_client
 
     app.dependency_overrides.clear()
+    reset_training_plans()
 
 
 def test_create_training_plan(client):
@@ -83,6 +64,47 @@ def test_get_training_plan_returns_404_when_not_found(client):
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Training plan not found"}
+
+
+def test_get_training_plan_returns_404_for_different_owner(client):
+    create_response = client.post(
+        "/training-plans",
+        json={
+            "race_type": "half_marathon",
+            "race_date": "2026-09-20",
+            "experience_level": "beginner",
+            "days_per_week": 4,
+        },
+    )
+    plan_id = create_response.json()["id"]
+    app.dependency_overrides[require_auth] = lambda: {"sub": "auth0|other-user"}
+
+    response = client.get(f"/training-plans/{plan_id}")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Training plan not found"}
+
+
+def test_create_training_plan_requires_authorization_token():
+    reset_training_plans()
+    app.dependency_overrides.clear()
+
+    try:
+        with TestClient(app) as test_client:
+            response = test_client.post(
+                "/training-plans",
+                json={
+                    "race_type": "half_marathon",
+                    "race_date": "2026-09-20",
+                    "experience_level": "beginner",
+                    "days_per_week": 4,
+                },
+            )
+    finally:
+        reset_training_plans()
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Missing authorization token"}
 
 
 def test_create_training_plan_rejects_invalid_days_per_week(client):

@@ -4,3 +4,6 @@ uvicorn
 sqlalchemy
 psycopg[binary]
 alembic
+python-jose[cryptography]
+requests
+python-dotenv
