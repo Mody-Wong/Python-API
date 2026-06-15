@@ -51,6 +51,14 @@ def get_training_plan(
     return stored_training_plan.plan
 
 
+def list_training_plans(owner_sub: str) -> list[TrainingPlanResponse]:
+    return [
+        stored_training_plan.plan
+        for stored_training_plan in _training_plans.values()
+        if stored_training_plan.owner_sub == owner_sub
+    ]
+
+
 def reset_training_plans() -> None:
     global _next_training_plan_id
 

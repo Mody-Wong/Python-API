@@ -59,6 +59,49 @@ def test_get_training_plan(client):
     assert response.json()["status"] == "draft"
 
 
+def test_list_training_plans(client):
+    first_response = client.post(
+        "/training-plans",
+        json={
+            "race_type": "half_marathon",
+            "race_date": "2026-09-20",
+            "experience_level": "beginner",
+            "days_per_week": 4,
+        },
+    )
+    second_response = client.post(
+        "/training-plans",
+        json={
+            "race_type": "10k",
+            "race_date": "2026-07-05",
+            "experience_level": "intermediate",
+            "days_per_week": 3,
+        },
+    )
+
+    response = client.get("/training-plans")
+
+    assert response.status_code == 200
+    assert [plan["id"] for plan in response.json()] == [
+        first_response.json()["id"],
+        second_response.json()["id"],
+    ]
+
+
+def test_list_training_plans_requires_authorization_token():
+    reset_training_plans()
+    app.dependency_overrides.clear()
+
+    try:
+        with TestClient(app) as test_client:
+            response = test_client.get("/training-plans")
+    finally:
+        reset_training_plans()
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Missing authorization token"}
+
+
 def test_get_training_plan_returns_404_when_not_found(client):
     response = client.get("/training-plans/999")
 

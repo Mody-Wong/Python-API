@@ -2,7 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from core.auth import require_auth
 from schemas.training_plan import TrainingPlanCreate, TrainingPlanResponse
-from services.training_plan_service import create_training_plan, get_training_plan
+from services.training_plan_service import (
+    create_training_plan,
+    get_training_plan,
+    list_training_plans,
+)
 
 router = APIRouter(prefix="/training-plans", tags=["training-plans"])
 
@@ -17,6 +21,13 @@ def create_plan(
     user: dict = Depends(require_auth),
 ):
     return create_training_plan(request, owner_sub=user["sub"])
+
+
+@router.get("", response_model=list[TrainingPlanResponse])
+def list_plans(
+    user: dict = Depends(require_auth),
+):
+    return list_training_plans(owner_sub=user["sub"])
 
 
 @router.get(

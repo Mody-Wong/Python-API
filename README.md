@@ -18,6 +18,7 @@ This repository is also designed to demonstrate how backend engineering patterns
 - Protected authenticated user endpoint
 - Create a training plan in memory
 - Retrieve an in-memory training plan by ID
+- List the authenticated user's in-memory training plans
 - Auth0 configuration and token validation helper
 
 ## Architecture
@@ -153,6 +154,15 @@ Example response:
   "status": "draft"
 }
 ```
+
+```http
+GET /training-plans
+```
+
+Lists the authenticated user's in-memory training plans.
+
+Requires an Auth0 bearer token. Only plans associated with the token's `sub`
+claim are returned.
 
 ```http
 GET /training-plans/{plan_id}
