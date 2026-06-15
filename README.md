@@ -177,6 +177,15 @@ Retrieves an in-memory training plan by ID.
 Requires an Auth0 bearer token. A plan is only returned to the user who created
 it.
 
+```http
+DELETE /training-plans/{plan_id}
+```
+
+Deletes an in-memory training plan by ID.
+
+Requires an Auth0 bearer token. A plan can only be deleted by the user who
+created it.
+
 ## Local Development
 
 ### 1. Create And Activate A Virtual Environment

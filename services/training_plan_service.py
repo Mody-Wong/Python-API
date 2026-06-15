@@ -51,6 +51,21 @@ def get_training_plan(
     return stored_training_plan.plan
 
 
+def delete_training_plan(
+    plan_id: int,
+    owner_sub: str,
+) -> bool:
+    stored_training_plan = _training_plans.get(plan_id)
+    if stored_training_plan is None:
+        return False
+
+    if stored_training_plan.owner_sub != owner_sub:
+        return False
+
+    del _training_plans[plan_id]
+    return True
+
+
 def list_training_plans(owner_sub: str) -> list[TrainingPlanResponse]:
     return [
         stored_training_plan.plan

@@ -104,6 +104,66 @@ def test_list_training_plans(client):
     ]
 
 
+def test_delete_training_plan(client):
+    create_response = client.post(
+        "/training-plans",
+        json={
+            "race_type": "half_marathon",
+            "race_date": "2026-09-20",
+            "experience_level": "beginner",
+            "days_per_week": 4,
+        },
+    )
+    plan_id = create_response.json()["id"]
+
+    delete_response = client.delete(f"/training-plans/{plan_id}")
+    get_response = client.get(f"/training-plans/{plan_id}")
+
+    assert delete_response.status_code == 204
+    assert delete_response.content == b""
+    assert get_response.status_code == 404
+
+
+def test_delete_training_plan_returns_404_when_not_found(client):
+    response = client.delete("/training-plans/999")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Training plan not found"}
+
+
+def test_delete_training_plan_returns_404_for_different_owner(client):
+    create_response = client.post(
+        "/training-plans",
+        json={
+            "race_type": "half_marathon",
+            "race_date": "2026-09-20",
+            "experience_level": "beginner",
+            "days_per_week": 4,
+        },
+    )
+    plan_id = create_response.json()["id"]
+    app.dependency_overrides[require_auth] = lambda: {"sub": "auth0|other-user"}
+
+    response = client.delete(f"/training-plans/{plan_id}")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Training plan not found"}
+
+
+def test_delete_training_plan_requires_authorization_token():
+    reset_training_plans()
+    app.dependency_overrides.clear()
+
+    try:
+        with TestClient(app) as test_client:
+            response = test_client.delete("/training-plans/1")
+    finally:
+        reset_training_plans()
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Missing authorization token"}
+
+
 def test_list_training_plans_requires_authorization_token():
     reset_training_plans()
     app.dependency_overrides.clear()

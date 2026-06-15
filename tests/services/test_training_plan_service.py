@@ -10,6 +10,7 @@ from schemas.training_plan import (
 )
 from services.training_plan_service import (
     create_training_plan,
+    delete_training_plan,
     get_training_plan,
     list_training_plans,
     reset_training_plans,
@@ -90,6 +91,42 @@ def test_get_training_plan_returns_none_for_different_owner(training_plan_store)
     response = get_training_plan(training_plan.id, owner_sub="auth0|other-user")
 
     assert response is None
+
+
+def test_delete_training_plan_removes_owner_plan(training_plan_store):
+    request = TrainingPlanCreate(
+        race_type=RaceType.half_marathon,
+        race_date=date(2026, 9, 20),
+        experience_level=ExperienceLevel.beginner,
+        days_per_week=4,
+    )
+    training_plan = create_training_plan(request, owner_sub="auth0|owner")
+
+    was_deleted = delete_training_plan(training_plan.id, owner_sub="auth0|owner")
+
+    assert was_deleted is True
+    assert get_training_plan(training_plan.id, owner_sub="auth0|owner") is None
+
+
+def test_delete_training_plan_returns_false_when_missing(training_plan_store):
+    was_deleted = delete_training_plan(999, owner_sub="auth0|owner")
+
+    assert was_deleted is False
+
+
+def test_delete_training_plan_returns_false_for_different_owner(training_plan_store):
+    request = TrainingPlanCreate(
+        race_type=RaceType.half_marathon,
+        race_date=date(2026, 9, 20),
+        experience_level=ExperienceLevel.beginner,
+        days_per_week=4,
+    )
+    training_plan = create_training_plan(request, owner_sub="auth0|owner")
+
+    was_deleted = delete_training_plan(training_plan.id, owner_sub="auth0|other-user")
+
+    assert was_deleted is False
+    assert get_training_plan(training_plan.id, owner_sub="auth0|owner") is not None
 
 
 def test_list_training_plans_returns_only_owner_plans(training_plan_store):

@@ -4,6 +4,7 @@ from core.auth import require_auth
 from schemas.training_plan import TrainingPlanCreate, TrainingPlanResponse
 from services.training_plan_service import (
     create_training_plan,
+    delete_training_plan,
     get_training_plan,
     list_training_plans,
 )
@@ -47,3 +48,20 @@ def get_plan(
         )
 
     return training_plan
+
+
+@router.delete(
+    "/{plan_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={404: {"description": "Training plan not found"}},
+)
+def delete_plan(
+    plan_id: int,
+    user: dict = Depends(require_auth),
+):
+    was_deleted = delete_training_plan(plan_id, owner_sub=user["sub"])
+    if not was_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Training plan not found",
+        )
