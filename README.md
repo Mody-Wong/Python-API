@@ -138,9 +138,13 @@ Example request:
   "race_type": "half_marathon",
   "race_date": "2026-09-20",
   "experience_level": "beginner",
-  "days_per_week": 4
+  "days_per_week": 4,
+  "status": "active"
 }
 ```
+
+`status` is optional and defaults to `draft`. Allowed values are `draft`,
+`active`, `completed`, and `archived`.
 
 Example response:
 
@@ -151,7 +155,7 @@ Example response:
   "race_date": "2026-09-20",
   "experience_level": "beginner",
   "days_per_week": 4,
-  "status": "draft"
+  "status": "active"
 }
 ```
 

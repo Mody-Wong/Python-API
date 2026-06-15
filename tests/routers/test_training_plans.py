@@ -40,6 +40,22 @@ def test_create_training_plan(client):
     assert response_body["status"] == "draft"
 
 
+def test_create_training_plan_accepts_status(client):
+    response = client.post(
+        "/training-plans",
+        json={
+            "race_type": "half_marathon",
+            "race_date": "2026-09-20",
+            "experience_level": "beginner",
+            "days_per_week": 4,
+            "status": "active",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["status"] == "active"
+
+
 def test_get_training_plan(client):
     create_response = client.post(
         "/training-plans",

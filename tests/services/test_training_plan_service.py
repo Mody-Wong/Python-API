@@ -2,7 +2,12 @@ from datetime import date
 
 import pytest
 
-from schemas.training_plan import ExperienceLevel, RaceType, TrainingPlanCreate
+from schemas.training_plan import (
+    ExperienceLevel,
+    RaceType,
+    TrainingPlanCreate,
+    TrainingPlanStatus,
+)
 from services.training_plan_service import (
     create_training_plan,
     get_training_plan,
@@ -33,7 +38,21 @@ def test_create_training_plan_returns_draft_plan(training_plan_store):
     assert response.race_date == date(2026, 9, 20)
     assert response.experience_level == ExperienceLevel.beginner
     assert response.days_per_week == 4
-    assert response.status == "draft"
+    assert response.status == TrainingPlanStatus.draft
+
+
+def test_create_training_plan_uses_requested_status(training_plan_store):
+    request = TrainingPlanCreate(
+        race_type=RaceType.half_marathon,
+        race_date=date(2026, 9, 20),
+        experience_level=ExperienceLevel.beginner,
+        days_per_week=4,
+        status=TrainingPlanStatus.active,
+    )
+
+    response = create_training_plan(request, owner_sub="auth0|test-user")
+
+    assert response.status == TrainingPlanStatus.active
 
 
 def test_get_training_plan_returns_existing_plan(training_plan_store):

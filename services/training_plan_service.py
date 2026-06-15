@@ -25,7 +25,7 @@ def create_training_plan(
         race_date=request.race_date,
         experience_level=request.experience_level,
         days_per_week=request.days_per_week,
-        status="draft",
+        status=request.status,
     )
 
     _training_plans[training_plan.id] = StoredTrainingPlan(

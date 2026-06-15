@@ -17,11 +17,19 @@ class ExperienceLevel(str, Enum):
     advanced = "advanced"
 
 
+class TrainingPlanStatus(str, Enum):
+    draft = "draft"
+    active = "active"
+    completed = "completed"
+    archived = "archived"
+
+
 class TrainingPlanCreate(BaseModel):
     race_type: RaceType
     race_date: date
     experience_level: ExperienceLevel
     days_per_week: int = Field(ge=1, le=7)
+    status: TrainingPlanStatus = TrainingPlanStatus.draft
 
 
 class TrainingPlanResponse(BaseModel):
@@ -32,4 +40,4 @@ class TrainingPlanResponse(BaseModel):
     race_date: date
     experience_level: ExperienceLevel
     days_per_week: int
-    status: str
+    status: TrainingPlanStatus
